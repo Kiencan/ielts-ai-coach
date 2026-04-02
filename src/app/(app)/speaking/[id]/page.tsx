@@ -179,6 +179,18 @@ export default function SpeakingPracticePage({ params }: { params: { id: string 
                 </div>
               </div>
 
+              {/* S2-13: audio playback of the recorded response */}
+              {audioBlob && (
+                <div className="p-4 border border-slate-200 rounded-xl bg-white">
+                  <p className="font-semibold text-sm text-slate-700 mb-2">Nghe lại bài nói của bạn</p>
+                  <audio
+                    controls
+                    className="w-full h-10"
+                    src={URL.createObjectURL(audioBlob)}
+                  />
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-3">
                 {[
                   { label: "Fluency & Coherence", score: feedback.fluencyScore },

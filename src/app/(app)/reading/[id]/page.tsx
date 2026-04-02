@@ -1,10 +1,11 @@
 "use client";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Timer } from "@/components/shared/Timer";
 import { CheckCircle, XCircle, Info } from "lucide-react";
+import { WordLookup } from "@/components/shared/WordLookup";
 
 const PASSAGE = {
   title: "The History of Coffee",
@@ -33,6 +34,35 @@ export default function ReadingPracticePage({ params }: { params: { id: string }
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState(false);
   const [highlighted, setHighlighted] = useState("");
+  const [lookup, setLookup] = useState<{ word: string; x: number; y: number } | null>(null);
+
+  // S2-12: double-click to look up a word
+  function handlePassageDoubleClick(e: React.MouseEvent) {
+    const selection = window.getSelection();
+    const word = selection?.toString().trim().replace(/[^a-zA-Z'-]/g, "");
+    if (!word) return;
+    setLookup({ word, x: e.clientX, y: e.clientY });
+  }
+  const [lastSaved, setLastSaved] = useState<string | null>(null);
+
+  // S2-11: restore draft from localStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem(`reading-draft-${params.id}`);
+    if (saved) {
+      try { setAnswers(JSON.parse(saved)); } catch { /* ignore */ }
+    }
+  }, [params.id]);
+
+  // S2-11: auto-save answers every 30s
+  useEffect(() => {
+    if (submitted || Object.keys(answers).length === 0) return;
+    const t = setInterval(() => {
+      localStorage.setItem(`reading-draft-${params.id}`, JSON.stringify(answers));
+      const now = new Date();
+      setLastSaved(`${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`);
+    }, 30000);
+    return () => clearInterval(t);
+  }, [answers, submitted, params.id]);
 
   // BUG-07 fix: define handleSubmit before handleExpire, wrap both with useCallback
   const handleSubmit = useCallback(() => {
@@ -82,10 +112,18 @@ export default function ReadingPracticePage({ params }: { params: { id: string }
       {/* Split Pane */}
       <div className="flex flex-1 overflow-hidden">
         {/* Passage */}
-        <div className="w-1/2 border-r border-slate-200 overflow-y-auto p-6 bg-white">
-          <p className="font-serif text-slate-800 leading-relaxed whitespace-pre-line text-[15px]">
+        <div className="w-1/2 border-r border-slate-200 overflow-y-auto p-6 bg-white flex flex-col">
+          <p
+            className="font-serif text-slate-800 leading-relaxed whitespace-pre-line text-[15px] flex-1 select-text cursor-text"
+            onDoubleClick={handlePassageDoubleClick}
+          >
             {PASSAGE.text}
           </p>
+          {!submitted && (
+            <p className="text-xs text-slate-400 mt-4">
+              {lastSaved ? `Đã lưu tự động lúc ${lastSaved}` : "Câu trả lời được lưu tự động mỗi 30 giây"}
+            </p>
+          )}
         </div>
 
         {/* Questions */}
@@ -93,7 +131,7 @@ export default function ReadingPracticePage({ params }: { params: { id: string }
           {!submitted && (
             <div className="p-3 bg-primary-50 rounded-lg text-sm text-primary-700 flex items-start gap-2">
               <Info className="w-4 h-4 mt-0.5 flex-shrink-0" />
-              Double-click vào từ trong bài đọc để tra cứu (tính năng sẽ sẵn sàng).
+              Double-click vào từ bất kỳ trong bài đọc để tra từ điển.
             </div>
           )}
 
@@ -158,6 +196,16 @@ export default function ReadingPracticePage({ params }: { params: { id: string }
           })}
         </div>
       </div>
+
+      {/* S2-12: word lookup popup */}
+      {lookup && (
+        <WordLookup
+          word={lookup.word}
+          x={lookup.x}
+          y={lookup.y}
+          onClose={() => setLookup(null)}
+        />
+      )}
     </div>
   );
 }

@@ -71,6 +71,18 @@ export default function WritingPracticePage({ params }: { params: { id: string }
       const data = await res.json();
       if (!res.ok) throw new Error(data.error?.message || "AI grading failed");
       setFeedback(data.data);
+
+      // Persist session + AI feedback to DB (best-effort, non-blocking)
+      fetch("/api/practice/sessions/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          questionSetId: params.id,
+          answers: { essay: text },
+          bandScore: data.data?.overallBand ?? null,
+          aiFeedback: data.data,
+        }),
+      }).catch(() => { /* ignore persistence errors */ });
     } catch (e: any) {
       setError(e.message || "Không thể chấm bài. Vui lòng thử lại.");
     } finally {

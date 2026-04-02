@@ -19,7 +19,12 @@ const difficultyMap = { easy: { label: "Dễ", variant: "green" as const }, medi
 export default function WritingListPage() {
   return (
     <div className="p-6 max-w-4xl mx-auto">
-      <PageHeader title="Writing" subtitle="Luyện Task 1 và Task 2 với phản hồi AI chi tiết theo 4 tiêu chí IELTS." />
+      <div className="flex items-start justify-between mb-1">
+        <PageHeader title="Writing" subtitle="Luyện Task 1 và Task 2 với phản hồi AI chi tiết theo 4 tiêu chí IELTS." />
+        <Link href="/writing/history">
+          <Button variant="outline" size="sm" className="mt-1"><ChevronRight className="w-4 h-4" /> Xem lịch sử</Button>
+        </Link>
+      </div>
 
       <div className="grid grid-cols-2 gap-4 mb-6">
         <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
