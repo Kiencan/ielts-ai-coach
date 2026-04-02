@@ -36,10 +36,10 @@ npm install
 ### 2. Cấu hình environment
 
 ```bash
-cp .env.example .dnv
+cp .env.example .env
 ```
 
-Điền các giá trị sau vào `.dnv`:
+Điền các giá trị sau vào `.env`:
 - `NEXT_PUBLIC_SUPABASE_URL` — URL từ Supabase project settings
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY` — Anon key từ Supabase
 - `SUPABASE_SERVICE_ROLE_KEY` — Service role key từ Supabase
