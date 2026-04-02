@@ -69,7 +69,16 @@ export default function ListeningListPage() {
       </div>
 
       {/* Filters row */}
-      <div className="flex flex-wrap gap-2 mb-5">
+      <div className="flex flex-wrap gap-2 mb-5 items-start">
+        {/* BUG-S2-05 fix: reset all filters (TC-S214-05) */}
+        {(filterDifficulty !== "all" || filterType !== "all" || filterSection !== "all") && (
+          <button
+            onClick={() => { setFilterDifficulty("all"); setFilterType("all"); setFilterSection("all"); }}
+            className="px-2.5 py-1 rounded-lg text-xs font-semibold border border-red-200 text-red-600 hover:bg-red-50 transition-colors"
+          >
+            ✕ Xóa filter
+          </button>
+        )}
         {/* Difficulty filter */}
         <div className="flex items-center gap-1.5">
           <span className="text-xs text-slate-500 font-medium">Độ khó:</span>

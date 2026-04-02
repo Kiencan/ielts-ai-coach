@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
-import { X, BookMarked } from "lucide-react";
+import { X, BookMarked, CheckCircle, AlertCircle } from "lucide-react";
 
 interface DictEntry {
   phonetic?: string;
@@ -21,12 +21,13 @@ interface Props {
   x: number;
   y: number;
   onClose: () => void;
-  onSave?: (word: string) => void;
+  onSave?: (word: string, definition: string, example?: string) => Promise<{ ok: boolean; duplicate?: boolean }>;
 }
 
 export function WordLookup({ word, x, y, onClose, onSave }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const [entry, setEntry] = useState<EntryState>({ loading: true, error: false, data: null });
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "duplicate" | "error">("idle");
 
   // Close on outside click
   useEffect(() => {
@@ -41,6 +42,7 @@ export function WordLookup({ word, x, y, onClose, onSave }: Props) {
   useEffect(() => {
     let cancelled = false;
     setEntry({ loading: true, error: false, data: null });
+    setSaveState("idle");
     fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word.toLowerCase())}`)
       .then((r) => r.json())
       .then((data) => {
@@ -55,11 +57,25 @@ export function WordLookup({ word, x, y, onClose, onSave }: Props) {
     return () => { cancelled = true; };
   }, [word]);
 
-  const top = Math.min(y + 12, window.innerHeight - 220);
+  const top = Math.min(y + 12, window.innerHeight - 240);
   const left = Math.min(x, window.innerWidth - 280);
 
   const meaning = entry.data?.meanings?.[0];
   const def = meaning?.definitions?.[0];
+
+  async function handleSave() {
+    if (!onSave || saveState !== "idle") return;
+    setSaveState("saving");
+    const definition = def?.definition ?? word;
+    const result = await onSave(word, definition, def?.example);
+    if (result.duplicate) {
+      setSaveState("duplicate");
+    } else if (result.ok) {
+      setSaveState("saved");
+    } else {
+      setSaveState("error");
+    }
+  }
 
   return (
     <div
@@ -97,13 +113,35 @@ export function WordLookup({ word, x, y, onClose, onSave }: Props) {
         </div>
       )}
 
+      {/* BUG-S2-04 fix: save button with duplicate + feedback states (TC-S212-02, TC-S212-04) */}
       {onSave && (
-        <button
-          onClick={() => { onSave(word); onClose(); }}
-          className="mt-3 w-full flex items-center justify-center gap-1.5 text-xs font-semibold text-primary-700 border border-primary-200 rounded-lg py-1.5 hover:bg-primary-50 transition-colors"
-        >
-          <BookMarked className="w-3.5 h-3.5" /> Lưu vào từ vựng
-        </button>
+        <div className="mt-3">
+          {saveState === "saved" && (
+            <div className="flex items-center gap-1.5 text-xs text-green-700 justify-center py-1.5">
+              <CheckCircle className="w-3.5 h-3.5" /> Đã lưu vào từ vựng!
+            </div>
+          )}
+          {saveState === "duplicate" && (
+            <div className="flex items-center gap-1.5 text-xs text-amber-700 justify-center py-1.5">
+              <AlertCircle className="w-3.5 h-3.5" /> Từ này đã có trong từ điển của bạn.
+            </div>
+          )}
+          {saveState === "error" && (
+            <div className="flex items-center gap-1.5 text-xs text-red-600 justify-center py-1.5">
+              <AlertCircle className="w-3.5 h-3.5" /> Không thể lưu. Thử lại sau.
+            </div>
+          )}
+          {(saveState === "idle" || saveState === "saving") && (
+            <button
+              onClick={handleSave}
+              disabled={saveState === "saving"}
+              className="w-full flex items-center justify-center gap-1.5 text-xs font-semibold text-primary-700 border border-primary-200 rounded-lg py-1.5 hover:bg-primary-50 transition-colors disabled:opacity-50"
+            >
+              <BookMarked className="w-3.5 h-3.5" />
+              {saveState === "saving" ? "Đang lưu..." : "Lưu vào từ vựng"}
+            </button>
+          )}
+        </div>
       )}
     </div>
   );

@@ -15,6 +15,23 @@ export async function GET(req: NextRequest) {
     const limit = Math.min(50, Math.max(1, parseInt(searchParams.get("limit") || "10")));
     const skip = (page - 1) * limit;
 
+    // BUG-S2-01 fix: validate enum values before passing to Prisma (TC-S202-06)
+    const VALID_SKILLS = ["listening", "reading", "writing", "speaking"];
+    const VALID_DIFFICULTIES = ["easy", "medium", "hard"];
+
+    if (skill && !VALID_SKILLS.includes(skill)) {
+      return NextResponse.json(
+        { success: false, error: { code: "INVALID_SKILL", message: `skill phải là một trong: ${VALID_SKILLS.join(", ")}` } },
+        { status: 400 }
+      );
+    }
+    if (difficulty && !VALID_DIFFICULTIES.includes(difficulty)) {
+      return NextResponse.json(
+        { success: false, error: { code: "INVALID_DIFFICULTY", message: `difficulty phải là một trong: ${VALID_DIFFICULTIES.join(", ")}` } },
+        { status: 400 }
+      );
+    }
+
     const where: Record<string, unknown> = {};
     if (skill) where.skill = skill;
     if (difficulty) where.difficulty = difficulty;

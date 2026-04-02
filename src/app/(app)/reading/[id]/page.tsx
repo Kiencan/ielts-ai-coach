@@ -44,12 +44,16 @@ export default function ReadingPracticePage({ params }: { params: { id: string }
     setLookup({ word, x: e.clientX, y: e.clientY });
   }
   const [lastSaved, setLastSaved] = useState<string | null>(null);
+  const [draftRestored, setDraftRestored] = useState(false);
 
-  // S2-11: restore draft from localStorage on mount
+  // S2-11: restore draft from localStorage on mount (TC-S211-02)
   useEffect(() => {
     const saved = localStorage.getItem(`reading-draft-${params.id}`);
     if (saved) {
-      try { setAnswers(JSON.parse(saved)); } catch { /* ignore */ }
+      try {
+        setAnswers(JSON.parse(saved));
+        setDraftRestored(true);
+      } catch { /* ignore */ }
     }
   }, [params.id]);
 
@@ -64,10 +68,11 @@ export default function ReadingPracticePage({ params }: { params: { id: string }
     return () => clearInterval(t);
   }, [answers, submitted, params.id]);
 
-  // BUG-07 fix: define handleSubmit before handleExpire, wrap both with useCallback
+  // BUG-07 fix + BUG-S2-02 fix: clear localStorage draft on submit (TC-S211-03)
   const handleSubmit = useCallback(() => {
+    localStorage.removeItem(`reading-draft-${params.id}`);
     setSubmitted(true);
-  }, []);
+  }, [params.id]);
 
   const handleExpire = useCallback(() => {
     setSubmitted((prev) => { if (!prev) return true; return prev; });
@@ -134,6 +139,13 @@ export default function ReadingPracticePage({ params }: { params: { id: string }
               Double-click vào từ bất kỳ trong bài đọc để tra từ điển.
             </div>
           )}
+          {/* BUG-S2-03 fix: show draft restored notice (TC-S211-02) */}
+          {draftRestored && !submitted && (
+            <div className="p-3 bg-green-50 rounded-lg text-sm text-green-700 flex items-start gap-2">
+              <CheckCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+              Đã khôi phục bản nháp của bạn.
+            </div>
+          )}
 
           {submitted && (
             <div className="p-4 bg-primary-50 rounded-xl border border-primary-100">
@@ -197,13 +209,22 @@ export default function ReadingPracticePage({ params }: { params: { id: string }
         </div>
       </div>
 
-      {/* S2-12: word lookup popup */}
+      {/* S2-12 + BUG-S2-04 fix: word lookup popup with save-to-vocab (TC-S212-02, TC-S212-04) */}
       {lookup && (
         <WordLookup
           word={lookup.word}
           x={lookup.x}
           y={lookup.y}
           onClose={() => setLookup(null)}
+          onSave={async (word, definition, example) => {
+            const res = await fetch("/api/vocabulary", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ word, definitionVi: definition, exampleSentence: example, topic: "Reading" }),
+            });
+            if (res.status === 409) return { ok: false, duplicate: true };
+            return { ok: res.ok };
+          }}
         />
       )}
     </div>

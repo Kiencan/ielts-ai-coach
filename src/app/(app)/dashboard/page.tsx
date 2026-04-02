@@ -53,6 +53,8 @@ function relativeDate(dateStr: string | null): string {
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  // BUG-S2-06 fix: chart time-period filter (TC-S206-03)
+  const [chartPeriod, setChartPeriod] = useState<7 | 30 | 90>(90);
 
   useEffect(() => {
     fetch("/api/dashboard/summary")
@@ -158,11 +160,36 @@ export default function DashboardPage() {
       {data && data.bandHistory.length > 0 && (
         <Card className="mb-6">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Tiến độ Band Score (90 ngày qua)</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base">Tiến độ Band Score</CardTitle>
+              {/* BUG-S2-06 fix: time period filter buttons (TC-S206-03) */}
+              <div className="flex gap-1">
+                {([7, 30, 90] as const).map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => setChartPeriod(p)}
+                    className={`px-2 py-0.5 rounded text-xs font-semibold border transition-colors ${
+                      chartPeriod === p
+                        ? "bg-primary-700 text-white border-primary-700"
+                        : "border-slate-200 text-slate-500 hover:border-primary-700"
+                    }`}
+                  >
+                    {p === 7 ? "1T" : p === 30 ? "1M" : "3M"}
+                  </button>
+                ))}
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={220}>
-              <LineChart data={data.bandHistory} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
+              <LineChart
+                data={data.bandHistory.filter((w) => {
+                  const cutoff = new Date();
+                  cutoff.setDate(cutoff.getDate() - chartPeriod);
+                  return new Date(w.week) >= cutoff;
+                })}
+                margin={{ top: 5, right: 10, left: -20, bottom: 5 }}
+              >
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                 <XAxis
                   dataKey="week"

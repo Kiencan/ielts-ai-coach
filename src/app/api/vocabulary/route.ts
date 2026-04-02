@@ -27,6 +27,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: { code: "VALIDATION", message: "Thiếu từ hoặc nghĩa." } }, { status: 400 });
     }
 
+    // BUG-S2-04 fix: check for duplicate word before inserting (TC-S212-04)
+    const existing = await prisma.vocabularyItem.findFirst({
+      where: { userId: user.id, word: { equals: word, mode: "insensitive" } },
+    });
+    if (existing) {
+      return NextResponse.json(
+        { success: false, error: { code: "DUPLICATE_WORD", message: "Từ này đã có trong từ điển của bạn." } },
+        { status: 409 }
+      );
+    }
+
     const item = await prisma.vocabularyItem.create({
       data: { userId: user.id, word, definitionVi, exampleSentence, topic, nextReviewAt: new Date() },
     });
