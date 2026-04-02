@@ -1,0 +1,141 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                 String    @id @default(uuid())
+  email              String    @unique
+  name               String?
+  avatarUrl          String?   @map("avatar_url")
+  targetBand         Float?    @map("target_band")
+  examDate           DateTime? @map("exam_date")
+  initialBand        Float?    @map("initial_band")
+  onboardingDone     Boolean   @default(false) @map("onboarding_done")
+  createdAt          DateTime  @default(now()) @map("created_at")
+
+  sessions           PracticeSession[]
+  vocabularyItems    VocabularyItem[]
+  mockTests          MockTest[]
+
+  @@map("users")
+}
+
+model QuestionSet {
+  id            String    @id @default(uuid())
+  skill         Skill
+  type          String
+  difficulty    Difficulty
+  title         String
+  content       Json
+  audioUrl      String?   @map("audio_url")
+  estimatedBand Float?    @map("estimated_band")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  sessions      PracticeSession[]
+
+  @@map("question_sets")
+}
+
+model PracticeSession {
+  id              String          @id @default(uuid())
+  userId          String          @map("user_id")
+  questionSetId   String          @map("question_set_id")
+  status          SessionStatus   @default(IN_PROGRESS)
+  answers         Json?
+  bandScore       Float?          @map("band_score")
+  timeSpentSeconds Int?           @map("time_spent_seconds")
+  startedAt       DateTime        @default(now()) @map("started_at")
+  submittedAt     DateTime?       @map("submitted_at")
+
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  questionSet     QuestionSet     @relation(fields: [questionSetId], references: [id])
+  aiFeedback      AiFeedback?
+
+  listeningMockTest  MockTest?   @relation("ListeningSession")
+  readingMockTest    MockTest?   @relation("ReadingSession")
+  writingMockTest    MockTest?   @relation("WritingSession")
+  speakingMockTest   MockTest?   @relation("SpeakingSession")
+
+  @@map("practice_sessions")
+}
+
+model AiFeedback {
+  id                    String          @id @default(uuid())
+  sessionId             String          @unique @map("session_id")
+  taskAchievementScore  Float?          @map("task_achievement_score")
+  coherenceScore        Float?          @map("coherence_score")
+  lexicalScore          Float?          @map("lexical_score")
+  grammarScore          Float?          @map("grammar_score")
+  overallBand           Float?          @map("overall_band")
+  strengths             String[]
+  improvements          String[]
+  suggestions           Json?
+  transcript            String?
+  generatedAt           DateTime        @default(now()) @map("generated_at")
+
+  session               PracticeSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@map("ai_feedbacks")
+}
+
+model VocabularyItem {
+  id              String    @id @default(uuid())
+  userId          String    @map("user_id")
+  word            String
+  definitionVi    String    @map("definition_vi")
+  exampleSentence String?   @map("example_sentence")
+  topic           String?
+  easeFactor      Float     @default(2.5) @map("ease_factor")
+  intervalDays    Int       @default(1) @map("interval_days")
+  repetitions     Int       @default(0)
+  nextReviewAt    DateTime  @default(now()) @map("next_review_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("vocabulary_items")
+}
+
+model MockTest {
+  id                  String    @id @default(uuid())
+  userId              String    @map("user_id")
+  listeningSessionId  String?   @unique @map("listening_session_id")
+  readingSessionId    String?   @unique @map("reading_session_id")
+  writingSessionId    String?   @unique @map("writing_session_id")
+  speakingSessionId   String?   @unique @map("speaking_session_id")
+  overallBand         Float?    @map("overall_band")
+  completedAt         DateTime? @map("completed_at")
+  createdAt           DateTime  @default(now()) @map("created_at")
+
+  user                User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  listeningSession    PracticeSession?  @relation("ListeningSession", fields: [listeningSessionId], references: [id])
+  readingSession      PracticeSession?  @relation("ReadingSession", fields: [readingSessionId], references: [id])
+  writingSession      PracticeSession?  @relation("WritingSession", fields: [writingSessionId], references: [id])
+  speakingSession     PracticeSession?  @relation("SpeakingSession", fields: [speakingSessionId], references: [id])
+
+  @@map("mock_tests")
+}
+
+enum Skill {
+  listening
+  reading
+  writing
+  speaking
+}
+
+enum Difficulty {
+  easy
+  medium
+  hard
+}
+
+enum SessionStatus {
+  IN_PROGRESS
+  submitted
+  completed
+}
